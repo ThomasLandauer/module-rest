@@ -14,14 +14,22 @@ Otherwise, a PHPBrowser should be specified as a dependency to send requests and
 
 This module requires PHPBrowser or any of Framework modules enabled.
 
+In case you need to configure low-level HTTP fields, that's done on the PHPBrowser level.
+Check the example below for details.
+
 ### Example
 
     modules:
        enabled:
            - REST:
                depends: PhpBrowser
-               url: 'http://serviceapp/api/v1/'
+               url: &url 'http://serviceapp/api/v1/' # you only need the &url anchor for further PhpBrowser configs
                shortDebugResponse: 300 # only the first 300 chars of the response
+       config:
+           PhpBrowser:
+               url: *url # repeats the URL from the REST module; not needed if you don't have further settings like below
+               headers:
+                   Content-Type: application/json
 
 ## Public Properties
 
@@ -354,6 +362,15 @@ $I->haveHttpHeader('Content-Type', 'application/json');
  * `[Part]` xml
 
 
+### haveServerParameter
+ 
+Sets SERVER parameter valid for all next requests.
+
+```php
+$I->haveServerParameter('name', 'value');
+```
+
+
 ### seeBinaryResponseEquals
  
 Checks if the hash of a binary response is exactly the same as provided.
@@ -520,6 +537,47 @@ This is done with json_last_error function.
  * `[Part]` json
 
 
+### seeResponseIsValidOnJsonSchema
+ 
+Checks whether last response matches the supplied json schema (https://json-schema.org/)
+Supply schema as relative file path in your project directory or an absolute path
+
+@see codecept_absolute_path()
+
+ * `param string` $schemaFilename
+ * `[Part]` json
+
+
+### seeResponseIsValidOnJsonSchemaString
+ 
+Checks whether last response matches the supplied json schema (https://json-schema.org/)
+Supply schema as json string.
+
+Examples:
+
+``` php
+<?php
+// response: {"name": "john", "age": 20}
+$I->seeResponseIsValidOnJsonSchemaString('{"type": "object"}');
+
+// response {"name": "john", "age": 20}
+$schema = [
+ "properties" => [
+     "age" => [
+         "type" => "integer",
+         "minimum" => 18
+     ]
+ ]
+];
+$I->seeResponseIsValidOnJsonSchemaString(json_encode($schema));
+
+?>
+```
+
+ * `param string` $schema
+ * `[Part]` json
+
+
 ### seeResponseIsXml
  
 Checks whether last response was valid XML.
@@ -620,9 +678,9 @@ $I->seeResponseJsonMatchesXpath('/store//price');
 
 ### seeResponseMatchesJsonType
  
-Checks that Json matches provided types.
+Checks that JSON matches provided types.
 In case you don't know the actual values of JSON data returned you can match them by type.
-Starts check with a root element. If JSON data is array it will check the first element of an array.
+It starts the check with a root element. If JSON data is an array it will check all elements of it.
 You can specify the path in the json which should be checked with JsonPath
 
 Basic example:
@@ -642,7 +700,7 @@ $I->seeResponseMatchesJsonType(['name' => 'string'], '$.users[0]');
 ?>
 ```
 
-In this case you can match that record contains fields with data types you expected.
+You can check if the record contains fields with the data types you expect.
 The list of possible data types:
 
 * string
@@ -650,8 +708,9 @@ The list of possible data types:
 * float
 * array (json object is array as well)
 * boolean
+* null
 
-You can also use nested data type structures:
+You can also use nested data type structures, and define multiple types for the same field:
 
 ```php
 <?php
@@ -663,45 +722,42 @@ $I->seeResponseMatchesJsonType([
 ?>
 ```
 
-You can also apply filters to check values. Filter can be applied with `:` char after the type declaration.
+You can also apply filters to check values. Filter can be applied with a `:` char after the type declaration,
+or after another filter if you need more than one.
 
 Here is the list of possible filters:
 
 * `integer:>{val}` - checks that integer is greater than {val} (works with float and string types too).
-* `integer:>={val}` - checks that integer is greater or equal than {val} (works with float and string types too).
 * `integer:<{val}` - checks that integer is lower than {val} (works with float and string types too).
-* `integer:<={val}` - checks that integer is lower or equal than {val} (works with float and string types too).
 * `string:url` - checks that value is valid url.
 * `string:date` - checks that value is date in JavaScript format: https://weblog.west-wind.com/posts/2014/Jan/06/JavaScript-JSON-Date-Parsing-and-real-Dates
 * `string:email` - checks that value is a valid email according to http://emailregex.com/
 * `string:regex({val})` - checks that string matches a regex provided with {val}
-* `string:empty` - checks that string is empty
 
 This is how filters can be used:
 
 ```php
 <?php
-// {'user_id': 1, 'email' => 'davert@codeception.com', 'name': 'Michael Bodnarchuk', 'karma': -15}
+// {'user_id': 1, 'email' => 'davert@codeception.com'}
 $I->seeResponseMatchesJsonType([
      'user_id' => 'string:>0:<1000', // multiple filters can be used
-     'email' => 'string:regex(~\@~)', // we just check that @ char is included
-     'name' => 'string:!empty', // we can check the opposite condition prepending the ! char
-     'karma' => 'integer:>-1000:<1000' // negative values can also be used                
+     'email' => 'string:regex(~\@~)' // we just check that @ char is included
 ]);
 
 // {'user_id': '1'}
 $I->seeResponseMatchesJsonType([
      'user_id' => 'string:>0', // works with strings as well
-}
+]);
 ?>
 ```
 
-You can also add custom filters y accessing `JsonType::addCustomFilter` method.
+You can also add custom filters by using `{@link JsonType::addCustomFilter()}`.
 See [JsonType reference](http://codeception.com/docs/reference/JsonType).
 
  * `[Part]` json
  * `param array` $jsonType
  * `param string` $jsonPath
+@see JsonType
  * `Available since` 2.1.3
 
 
@@ -868,6 +924,16 @@ Sends UNLINK request to given uri.
 @author samva.ua@gmail.com
  * `[Part]` json
  * `[Part]` xml
+
+
+### setServerParameters
+ 
+Sets SERVER parameters valid for all next requests.
+this will remove old ones.
+
+```php
+$I->setServerParameters([]);
+```
 
 
 ### startFollowingRedirects
